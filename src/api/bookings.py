@@ -36,7 +36,7 @@ async def add_booking(
         price = room_price,
         **booking_data.model_dump()
     )
-    booking = await db.bookings.add(_booking_data)
+    booking = await db.bookings.add_booking(_booking_data, hotel_id = booking_data.hotel_id)
     await db.commit()
     #Полуцчить цену номера
     # Создать схему данных BookingAdd
