@@ -3,6 +3,7 @@ from sqlalchemy import select
 
 from fastapi import HTTPException
 
+from exceptions import AllRoomsAreBookedExcepion
 from src.repositories.utils import rooms_ids_for_bookings
 from src.repositories.mappers.mappers import BookingDataMapper
 from src.models.bookings import BookingsOrm
@@ -30,5 +31,5 @@ class BookingsRepository(BaseRepository):
         if data.room_id in rooms_ids_to_book:
             new_booking = await self.add(data)
             return new_booking
-        else:
-            raise HTTPException(500)
+        
+        raise AllRoomsAreBookedExcepion()
