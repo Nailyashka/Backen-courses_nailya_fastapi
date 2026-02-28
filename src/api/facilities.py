@@ -1,4 +1,4 @@
-from fastapi import Query, Body,APIRouter, Depends
+from fastapi import Query, Body, APIRouter, Depends
 from fastapi_cache.decorator import cache
 from sqlalchemy import func, insert, select
 

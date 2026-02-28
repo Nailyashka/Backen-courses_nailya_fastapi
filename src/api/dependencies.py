@@ -8,20 +8,21 @@ from src.utils.db_manager import DBManager
 from src.database import async_session_maker
 
 
-#Query параметр нельзя использовать в pydantic схеме
-#pydantic не привязан к FastAPI
-#а FastAPI привязан к pydantic
+# Query параметр нельзя использовать в pydantic схеме
+# pydantic не привязан к FastAPI
+# а FastAPI привязан к pydantic
 
 # class PaginationParams(BaseModel):
 #     page: int | None = Query(None, gt=1)
 #     per_page: int | None = Query(None, gt=1, lt=30)
-    
-    
+
+
 class PaginationParams(BaseModel):
-    page: Annotated[int | None ,Query(1, ge=1)]
+    page: Annotated[int | None, Query(1, ge=1)]
     per_page: Annotated[int | None, Query(None, ge=1, lt=30)]
-    
-PaginationDep = Annotated[PaginationParams,Depends()]
+
+
+PaginationDep = Annotated[PaginationParams, Depends()]
 
 
 def get_token(request: Request) -> str:
@@ -29,13 +30,15 @@ def get_token(request: Request) -> str:
     if not token:
         raise HTTPException(status_code=401, detail="Вы не предоставили токен доступа")
     return token
-    
+
 
 def get_current_user_id(token: str = Depends(get_token)) -> int:
     data = AuthService().decode_token(token)
     return data["user_id"]
 
-UserIdDepends = Annotated[int,Depends(get_current_user_id)]
+
+UserIdDepends = Annotated[int, Depends(get_current_user_id)]
+
 
 def get_db_manager():
     return DBManager(session_factory=async_session_maker)
