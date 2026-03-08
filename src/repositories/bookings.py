@@ -3,7 +3,7 @@ from sqlalchemy import select
 
 from fastapi import HTTPException
 
-from exceptions import AllRoomsAreBookedExcepion
+from src.exceptions import AllRoomsAreBookedExcepion
 from src.repositories.utils import rooms_ids_for_bookings
 from src.repositories.mappers.mappers import BookingDataMapper
 from src.models.bookings import BookingsOrm

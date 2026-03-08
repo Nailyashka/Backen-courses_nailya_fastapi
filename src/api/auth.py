@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Response
 
+from src.exceptions import ObjectAlreadyExistsExcepion, UserAlreadyExists
 from src.api.dependencies import UserIdDepends
 from src.services.auth import AuthService
 from src.repositories.users import UsersRepository
@@ -16,11 +17,17 @@ async def register_user(
     hashed_passworld = AuthService().hash_password(data.password)
     new_user_data = UserAdd(email=data.email, hashed_passworld=hashed_passworld)
     async with async_session_maker() as session:
-        await UsersRepository(session).add(new_user_data)
+        try:
+            await UsersRepository(session).add(new_user_data)
         # execute в переводе - исполни
         # compile() значит скомпилируй  логирование
         # print(add_hotel_stmt.compile(engine,compile_kwargs={"literal_binds":True}))
-        await session.commit()
+            await session.commit()
+        except ObjectAlreadyExistsExcepion:
+            raise HTTPException(
+                status_code=409,
+                detail="пользоватль c таким email уже существует"
+            )
     return {"status": "ok"}
 
 

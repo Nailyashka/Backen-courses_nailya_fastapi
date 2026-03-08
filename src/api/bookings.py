@@ -2,7 +2,7 @@ from fastapi import HTTPException, Query, Body, APIRouter, Depends
 from sqlalchemy import func, insert, select
 
 
-from exceptions import AllRoomsAreBookedExcepion, ObjectNotFoundExcepion
+from src.exceptions import AllRoomsAreBookedExcepion, ObjectNotFoundException, RoomNotFoundHTTPException
 from src.schemas.bookings import Booking, BookingAdd, BookingAddRequest
 from src.api.dependencies import DBDep, PaginationDep, UserIdDepends
 from src.schemas.hotels import Hotel, HotelAdd, HotelPATCH
@@ -27,8 +27,8 @@ async def get_my_bookings(user_id: UserIdDepends, db: DBDep):
 async def add_booking(user_id: UserIdDepends, db: DBDep, booking_data: BookingAddRequest):
     try:
         room = await db.rooms.get_one(id=booking_data.room_id)
-    except ObjectNotFoundExcepion:
-        raise HTTPException(status_code=400, detail="Номер не найден")
+    except ObjectNotFoundException:
+        raise RoomNotFoundHTTPException()
     # if not room:
     #     raise HTTPException(status_code=404,detail="Номер не найден")
     room_price: int = room.price

@@ -1,10 +1,12 @@
+import logging
 from typing import Any
 
+from asyncpg.exceptions import UniqueViolationError
 from pydantic import BaseModel
 from sqlalchemy import select, insert, update, delete
 
-from exceptions import ObjectNotFoundExcepion
-from sqlalchemy.exc import NoResultFound
+from src.exceptions import ObjectAlreadyExistsExcepion, ObjectNotFoundExcepion
+from sqlalchemy.exc import NoResultFound, IntegrityError
 from src.repositories.mappers.base import DataMapper
 
 
@@ -49,10 +51,19 @@ class BaseRepository:
         return self.mapper.map_to_domain_entity(model)
 
     async def add(self, data: BaseModel):
-        add_data_stmt = insert(self.model).values(**data.model_dump()).returning(self.model)
-        result = await self.session.execute(add_data_stmt)
-        model = result.scalars().one()
-        return self.mapper.map_to_domain_entity(model)
+        try:
+            add_data_stmt = insert(self.model).values(**data.model_dump()).returning(self.model)
+            result = await self.session.execute(add_data_stmt)
+            model = result.scalars().one()
+            return self.mapper.map_to_domain_entity(model)
+        except IntegrityError as ex:
+            logging.error(f"Ошибка при добавлении данных: {ex}\n входные данные: {data} тип ошибки: {type(ex.orig.__cause__)}")
+            if isinstance(ex.orig.__cause__, UniqueViolationError):
+                raise ObjectAlreadyExistsExcepion from ex
+            else:
+                logging.error(f"Незвестная ошибка при добавлении данных: {ex}\n входные данные: {data} тип ошибки: {type(ex.orig.__cause__)}")
+                raise ex 
+            
 
     # bulk = много данных.массивный
     async def add_bulk(self, data: list[BaseModel]):

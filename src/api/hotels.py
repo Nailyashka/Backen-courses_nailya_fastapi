@@ -1,8 +1,10 @@
 from datetime import date
-from fastapi import Query, Body, APIRouter, Depends
+from fastapi import HTTPException, Query, Body, APIRouter, Depends
+from fastapi_cache.decorator import cache
 from sqlalchemy import func, insert, select
 
 
+from exceptions import HotelNotFoundHTTPException, ObjectNotFoundExcepion, ObjectNotFoundException, check_date_to_after_date_from
 from src.api.dependencies import DBDep, PaginationDep
 from src.schemas.hotels import Hotel, HotelAdd, HotelPATCH
 
@@ -13,6 +15,7 @@ router = APIRouter(prefix="/hotels", tags=["Отели"])
 
 
 @router.get("")
+@cache(expire=10)
 async def get_hotels(
     pagination: PaginationDep,
     db: DBDep,
@@ -21,7 +24,7 @@ async def get_hotels(
     location: str | None = Query(None, description="Локация"),
     title: str | None = Query(None, description="Название отеля"),
 ):
-
+    check_date_to_after_date_from(date_from,date_to)
     per_page = pagination.per_page or 5
     return await db.hotels.get_filtered_by_time(
         date_from=date_from,
@@ -35,7 +38,10 @@ async def get_hotels(
 
 @router.get("/{hotel_id}")
 async def edit_hotel(hotel_id: int, db: DBDep):
-    return await db.hotels.get_one_or_none(id=hotel_id)
+    try:
+        return await db.hotels.get_one(id=hotel_id)
+    except ObjectNotFoundException:
+        raise HTTPException(status_code=400,detail="Отель не найден")
 
 
 @router.delete("/{hotel_id}")
@@ -44,6 +50,12 @@ async def delete_hotel(hotel_id: int, db: DBDep):
     # КОММИТ НА УРОВНЕ РУЧКИ ПРОИСХОДИТ!!!!!!!!!!
     return {"status": "ok"}
 
+@router.get("/{hotel_id}")
+async def get_hotel(hotel_id: int, db: DBDep):
+    try:
+        return await db.hotels.get_one(id=hotel_id)
+    except ObjectNotFoundException:
+        raise HotelNotFoundHTTPException()
 
 # body, requetst body
 @router.post("")
