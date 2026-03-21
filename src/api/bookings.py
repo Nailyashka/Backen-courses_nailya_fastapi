@@ -6,12 +6,14 @@ from src.exceptions import AllRoomsAreBookedExcepion, ObjectNotFoundException, R
 from src.schemas.bookings import Booking, BookingAdd, BookingAddRequest
 from src.api.dependencies import DBDep, PaginationDep, UserIdDepends
 from src.schemas.hotels import Hotel, HotelAdd, HotelPATCH
-
+print("BOOKINGS ROUTER LOADED")
 
 router = APIRouter(prefix="/bookings", tags=["Бронирования"])
 
+for r in router.routes:
+    print(r.path, r.methods)
 
-@router.get("")
+@router.get("/")
 async def get_bookings(
     db: DBDep,
 ):
@@ -23,7 +25,7 @@ async def get_my_bookings(user_id: UserIdDepends, db: DBDep):
     return await db.bookings.get_filtered(user_id=user_id)
 
 
-@router.post("")
+@router.post("/")
 async def add_booking(user_id: UserIdDepends, db: DBDep, booking_data: BookingAddRequest):
     try:
         room = await db.rooms.get_one(id=booking_data.room_id)
@@ -42,6 +44,9 @@ async def add_booking(user_id: UserIdDepends, db: DBDep, booking_data: BookingAd
         booking = await db.bookings.add_booking(_booking_data)
     except AllRoomsAreBookedExcepion:
         raise HTTPException(status_code=409, detail="Не осталось свободных номеров")
+    except Exception as e:
+        print("Ошибка бронирования:", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
     await db.commit()
 
