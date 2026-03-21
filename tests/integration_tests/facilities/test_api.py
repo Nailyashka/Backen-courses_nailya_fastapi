@@ -6,7 +6,7 @@ async def test_get_facilities(ac):
 
 async def test_get_facilities(ac):
     facility_title = "Массаж"
-    response = await ac.get("/facilities", json={"title": facility_title})
+    response = await ac.get("/facilities", params={"title": facility_title})
     assert response.status_code == 200
     res = response.json()
     assert isinstance(res, dict)

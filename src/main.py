@@ -30,17 +30,18 @@ async def lifespan(app: FastAPI):
     await redis_manager.connect()
     FastAPICache.init(RedisBackend(redis_manager.redis), prefix="fastapi-cache")
     logging.info("FastApi cache iniialized")
-    app.include_router(router_auth)
-    app.include_router(router_rooms)
-    app.include_router(router_hotels)
-    app.include_router(router_facility)
-    app.include_router(router_bookings)
-    app.include_router(router_images)
     yield
     await redis_manager.close()
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.include_router(router_auth)
+app.include_router(router_rooms)
+app.include_router(router_hotels)
+app.include_router(router_facility)
+app.include_router(router_bookings)
+app.include_router(router_images)
 
 
 if __name__ == "__main__":

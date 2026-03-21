@@ -5,7 +5,7 @@ from asyncpg.exceptions import UniqueViolationError
 from pydantic import BaseModel
 from sqlalchemy import select, insert, update, delete
 
-from src.exceptions import ObjectAlreadyExistsExcepion, ObjectNotFoundExcepion
+from src.exceptions import ObjectAlreadyExistsExcepion, ObjectNotFoundException
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from src.repositories.mappers.base import DataMapper
 
@@ -47,7 +47,7 @@ class BaseRepository:
         try:
             model = result.scalar_one()
         except NoResultFound:
-            raise ObjectNotFoundExcepion()
+            raise ObjectNotFoundException()
         return self.mapper.map_to_domain_entity(model)
 
     async def add(self, data: BaseModel):

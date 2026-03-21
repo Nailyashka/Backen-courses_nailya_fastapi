@@ -4,7 +4,7 @@ from fastapi_cache.decorator import cache
 from sqlalchemy import func, insert, select
 
 
-from exceptions import HotelNotFoundHTTPException, ObjectNotFoundExcepion, ObjectNotFoundException, check_date_to_after_date_from
+from exceptions import HotelNotFoundHTTPException, ObjectNotFoundException, ObjectNotFoundException, check_date_to_after_date_from
 from src.api.dependencies import DBDep, PaginationDep
 from src.schemas.hotels import Hotel, HotelAdd, HotelPATCH
 

@@ -1,43 +1,40 @@
 # ruff: noqa: E402
 import json
 from unittest import mock
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 
-
+# --- mock кэш ---
 def empty_cache(*args, **kwargs):
     def wrapper(func):
         return func
-
     return wrapper
 
+# Подмена кэша: выключаем кэш во всех тестах
+@pytest.fixture(autouse=True)
+def patch_cache():
+    with mock.patch("fastapi_cache.decorator.cache", lambda *args, **kwargs: lambda f: f):
+        yield
 
-mock.patch("fastapi_cache.decorator.cache", lambda *args, **kwargs: lambda f: f).start()
-from httpx import ASGITransport, AsyncClient
-import pytest
-import pytest_asyncio
-
+# --- импорт проекта ---
 from src.schemas.rooms import RoomAdd
 from src.schemas.hotels import HotelAdd
 from src.config import settings
-from src.database import Base, engine_null_pool
+from src.database import Base, engine_null_pool, async_session_maker_null_pool
 from src.main import app
 from src.models import *  # noqa: F403
 from src.utils.db_manager import DBManager
-from src.database import async_session_maker_null_pool
 
-
+# --- проверка режима ---
 @pytest.fixture(scope="session", autouse=True)
 def check_test_mode():
     assert settings.MODE == "TEST"
 
-
-async def get_db_null_pool():
-    async with DBManager(session_factory=async_session_maker_null_pool) as db:
-        yield db
-
-
-# Измените на pytest_asyncio.fixture для асинхронных фикстур
+# --- фикстуры БД ---
 @pytest_asyncio.fixture(scope="function")
 async def db():
+    """Асинхронная сессия БД для тестов"""
     async with DBManager(session_factory=async_session_maker_null_pool) as db:
         try:
             yield db
@@ -45,16 +42,14 @@ async def db():
             # Явное закрытие сессии
             await db.session.close()
 
-
-@pytest.fixture(scope="session", autouse=True)
+# --- одноразовая настройка БД для всей сессии ---
+@pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_database():
-    """Одноразовая настройка БД для всех тестов"""
-    # Сбрасываем БД
+    """Создание структуры и загрузка тестовых данных"""
     async with engine_null_pool.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
-    # Загружаем тестовые данные
     with open("tests/mock_hotels.json", encoding="utf-8") as file_hotels:
         hotels = json.load(file_hotels)
     with open("tests/mock_rooms.json", encoding="utf-8") as file_rooms:
@@ -63,7 +58,6 @@ async def setup_database():
     hotels = [HotelAdd.model_validate(hotel) for hotel in hotels]
     rooms = [RoomAdd.model_validate(room) for room in rooms]
 
-    # Используем отдельную сессию для настройки данных
     async with DBManager(session_factory=async_session_maker_null_pool) as db:
         await db.hotels.add_bulk(hotels)
         await db.rooms.add_bulk(rooms)
@@ -71,43 +65,33 @@ async def setup_database():
 
     yield
 
-    # Очистка после всех тестов
     async with engine_null_pool.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
-
+# --- фикстуры для HTTP клиента ---
 @pytest_asyncio.fixture(scope="session")
 async def ac():
+    """Асинхронный клиент для всех тестов"""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
-
 @pytest_asyncio.fixture(scope="session")
-async def authenticated_user(ac, setup_database):
+async def authenticated_ac(ac, setup_database):
     """Фикстура для зарегистрированного пользователя"""
-    # Сначала регистрируем
-    response = await ac.post(
+    # Регистрируем пользователя
+    await ac.post(
         "/auth/register", json={"email": "hot@lala.com", "password": "1234"}
     )
 
-    # Затем логинимся для получения токена
+    # Логинимся
     response = await ac.post(
         "/auth/login",
-        data={"username": "hot@lala.com", "password": "1234"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        json={"email": "hot@lala.com", "password": "1234"},
     )
 
     token = response.json().get("access_token")
-
-    # Устанавливаем токен в заголовки клиента
+    print("\n--- LOGIN TOKEN ---", token, "---\n")
     ac.headers.update({"Authorization": f"Bearer {token}"})
 
     return ac
-
-
-@pytest.fixture(scope="session")
-async def authenticated_ac(register_user, ac):
-    await ac.post("/auth/login", json={"email": "hot@lala.com", "password": "1234"})
-    assert ac.cookies
-    yield ac
