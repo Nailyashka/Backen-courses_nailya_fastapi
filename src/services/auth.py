@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from passlib.context import CryptContext
+import bcrypt
 from fastapi import HTTPException
 import jwt
 
@@ -8,8 +8,6 @@ from src.config import settings
 
 
 class AuthService:
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
     def create_access_token(self, data: dict) -> str:
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + timedelta(
@@ -24,10 +22,15 @@ class AuthService:
         return encoded_jwt
 
     def hash_password(self, password: str) -> str:
-        return self.pwd_context.hash(password)
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-    def verify_password(self, plain_password, hashed_password):
-        return self.pwd_context.verify(plain_password, hashed_password)
+    def verify_password(self, plain_password, hashed_password) -> bool:
+        h = (
+            hashed_password.encode("utf-8")
+            if isinstance(hashed_password, str)
+            else hashed_password
+        )
+        return bcrypt.checkpw(plain_password.encode("utf-8"), h)
 
     def decode_token(self, token: str) -> dict:
         try:
