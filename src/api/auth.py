@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Response
 
-from src.exceptions import ObjectAlreadyExistsExcepion, UserAlreadyExists
-from src.api.dependencies import UserIdDepends
+from src.exceptions import ObjectAlreadyExistsExcepion, UserAlreadyExists, UserAlreadyExistsException, UserEmailAlreadyExistsHTTPException
+from src.api.dependencies import DBDep, UserIdDepends
 from src.services.auth import AuthService
 from src.repositories.users import UsersRepository
 from src.schemas.users import UserAdd, UserRequestAdd
@@ -13,22 +13,14 @@ router = APIRouter(prefix="/auth", tags=["Авторизация и аутенф
 @router.post("/register")
 async def register_user(
     data: UserRequestAdd,
+    db: DBDep
 ):
-    hashed_passworld = AuthService().hash_password(data.password)
-    new_user_data = UserAdd(email=data.email, hashed_passworld=hashed_passworld)
-    async with async_session_maker() as session:
-        try:
-            await UsersRepository(session).add(new_user_data)
-        # execute в переводе - исполни
-        # compile() значит скомпилируй  логирование
-        # print(add_hotel_stmt.compile(engine,compile_kwargs={"literal_binds":True}))
-            await session.commit()
-        except ObjectAlreadyExistsExcepion:
-            raise HTTPException(
-                status_code=409,
-                detail="пользоватль c таким email уже существует"
-            )
-    return {"status": "ok"}
+    try:
+        await AuthService(db).register_user(data)
+    except UserAlreadyExistsException:
+            raise UserEmailAlreadyExistsHTTPException
+
+    return {"status": "OK"}
 
 
 @router.post("/login")

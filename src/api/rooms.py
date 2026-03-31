@@ -39,13 +39,9 @@ async def create_room(hotel_id: int, db: DBDep, room_data: RoomAddRequest = Body
 
 @router.put("/{hotel_id}/rooms/{room_id}")
 async def edit_room(hotel_id: int, room_id: int, room_data: RoomAddRequest, db: DBDep):
-    try:
         await RoomService(db).edit_room(hotel_id, room_id, room_data)
         return {"status": "ok"}
-    except HotelNotFoundHTTPException:
-        raise HTTPException(status_code=404, detail="Отель не найден")
-    except RoomNotFoundHTTPException:
-        raise HTTPException(status_code=404, detail="Комната не найдена")
+
 
 
 @router.patch(

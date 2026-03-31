@@ -37,10 +37,7 @@ async def get_hotels(
 
 @router.get("/{hotel_id}")
 async def edit_hotel(hotel_id: int, db: DBDep):
-    try:
-        return await HotelService(db).get_hotel(hotel_id=hotel_id)
-    except ObjectNotFoundException:
-        raise HTTPException(status_code=400,detail="Отель не найден")
+    return await HotelService(db).get_hotel(hotel_id=hotel_id)
 
 
 

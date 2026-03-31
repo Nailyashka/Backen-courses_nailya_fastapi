@@ -1,5 +1,3 @@
-
-
 from src.exceptions import HotelNotFoundHTTPException, ObjectNotFoundException, RoomNotFoundHTTPException, check_date_to_after_date_from
 from src.schemas.facilities import RoomsFacilityAdd
 from src.schemas.rooms import RoomAdd, RoomAddRequest, RoomPatch

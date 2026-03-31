@@ -5,52 +5,35 @@ from sqlalchemy import func, insert, select
 from src.exceptions import AllRoomsAreBookedExcepion, ObjectNotFoundException, RoomNotFoundHTTPException
 from src.schemas.bookings import Booking, BookingAdd, BookingAddRequest
 from src.api.dependencies import DBDep, PaginationDep, UserIdDepends
-from src.schemas.hotels import Hotel, HotelAdd, HotelPATCH
-print("BOOKINGS ROUTER LOADED")
+from src.services.bookings import BookingService
 
 router = APIRouter(prefix="/bookings", tags=["Бронирования"])
 
 for r in router.routes:
     print(r.path, r.methods)
 
-@router.get("/")
-async def get_bookings(
-    db: DBDep,
-):
-    return await db.bookings.get_all()
+# @router.get("/")
+# async def get_bookings(
+#     db: DBDep,
+# ):
+#     return await db.bookings.get_all()
 
 
 @router.get("/me")
 async def get_my_bookings(user_id: UserIdDepends, db: DBDep):
-    return await db.bookings.get_filtered(user_id=user_id)
-
+    await BookingService(db).get_bookings_by_user(user_id=user_id)
+    return {"status": "ok"}
 
 @router.post("/")
-async def add_booking(user_id: UserIdDepends, db: DBDep, booking_data: BookingAddRequest):
-    try:
-        room = await db.rooms.get_one(id=booking_data.room_id)
-    except ObjectNotFoundException:
-        raise RoomNotFoundHTTPException()
-
-    room_price: int = room.price
-
-    _booking_data = BookingAdd(
+async def add_booking(
+    user_id: UserIdDepends,
+    db: DBDep,
+    booking_data: BookingAddRequest
+):
+    booking = await BookingService(db).add_booking(
         user_id=user_id,
-        price=room_price,
-        **booking_data.model_dump()
+        booking_data=booking_data
     )
 
-    try:
-        booking = await db.bookings.add_booking(
-            _booking_data,
-            hotel_id=booking_data.hotel_id,
-        )
-    except AllRoomsAreBookedExcepion:
-        raise HTTPException(status_code=409, detail="Не осталось свободных номеров")
-    except Exception as e:
-        print("Ошибка бронирования:", e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-    await db.commit()
-
     return {"status": "ok", "data": booking}
+  

@@ -3,23 +3,34 @@ from datetime import date
 from fastapi import HTTPException
 
 
-class  NabronirovalExcepion(Exception):
+class  NabronirovalException(Exception):
     detail = "Неожиданная ошибка"
     
     def __init__(self,*args, **kwargs):
         super().__init__(self.detail, *args, **kwargs)
 
+class IncorrectTokenException(NabronirovalException):
+    detail = "Некорректный токен"
 
-class ObjectNotFoundException(NabronirovalExcepion):
+class EmailNotRegisteredException(NabronirovalException):
+    detail = "Пользователь с таким email не зарегистрирован"
+
+class IncorrectPasswordException(NabronirovalException):
+    detail = "Пароль неверный"
+
+class UserAlreadyExistsException(NabronirovalException):
+    detail = "Пользователь уже существует"
+
+class ObjectNotFoundException(NabronirovalException):
     detail = "Объект не найден"
     
-class ObjectAlreadyExistsExcepion(NabronirovalExcepion):
+class ObjectAlreadyExistsExcepion(NabronirovalException):
     detail = "Похожий объект уж существует"
     
-class AllRoomsAreBookedExcepion(NabronirovalExcepion):
+class AllRoomsAreBookedExcepion(NabronirovalException):
     detail = "Не осталось свободных номеров"
     
-class UserAlreadyExists(NabronirovalExcepion):
+class UserAlreadyExists(NabronirovalException):
     detail = "Пользователь с таким email уже сущствует"
     
 def check_date_to_after_date_from(date_from:date,date_to:date) -> None:
@@ -43,3 +54,33 @@ class HotelNotFoundHTTPException(NabronirovalHTTPException):
 class RoomNotFoundHTTPException(NabronirovalHTTPException):
     status_code = 404
     detail = "Номер не найден"
+    
+    
+
+class AllRoomsAreBookedHTTPException(NabronirovalHTTPException):
+    status_code = 409
+    detail = "Не осталось свободных номеров"
+
+
+class IncorrectTokenHTTPException(NabronirovalHTTPException):
+    detail = "Некорректный токен"
+
+
+class EmailNotRegisteredHTTPException(NabronirovalHTTPException):
+    status_code = 401
+    detail = "Пользователь с таким email не зарегистрирован"
+
+
+class UserEmailAlreadyExistsHTTPException(NabronirovalHTTPException):
+    status_code = 409
+    detail = "Пользователь с такой почтой уже существует"
+
+
+class IncorrectPasswordHTTPException(NabronirovalHTTPException):
+    status_code = 401
+    detail = "Пароль неверный"
+
+
+class NoAccessTokenHTTPException(NabronirovalHTTPException):
+    status_code = 401
+    detail = "Вы не предоставили токен доступа"

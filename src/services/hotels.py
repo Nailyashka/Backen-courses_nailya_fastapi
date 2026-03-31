@@ -1,4 +1,4 @@
-from exceptions import check_date_to_after_date_from
+from src.exceptions import HotelNotFoundHTTPException, ObjectNotFoundException, check_date_to_after_date_from
 from src.schemas.hotels import HotelAdd
 from src.services.base import BaseService
 
@@ -24,7 +24,10 @@ class HotelService(BaseService):
         )
         
     async def get_hotel(self,hotel_id: int):
-            return await self.db.hotels.get_one(id=hotel_id)    
+        try:
+            return await self.db.hotels.get_one(id=hotel_id) 
+        except ObjectNotFoundException:
+            raise HotelNotFoundHTTPException()   
         
     async def add_hotel(self, hotel_data: HotelAdd):    
         hotel = await self.db.hotels.add(hotel_data)

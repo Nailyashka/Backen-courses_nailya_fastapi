@@ -10,10 +10,13 @@ from fastapi_cache.backends.redis import RedisBackend
 from fastapi_cache.decorator import cache
 import uvicorn
 
+from src.handlers import booking_exception_handler, hotel_not_found_handler, room_not_found_handler
+
 sys.path.append(str(Path(__file__).parent.parent))
 
 logging.basicConfig(level=logging.INFO)
 
+from src.exceptions import AllRoomsAreBookedExcepion, HotelNotFoundHTTPException, RoomNotFoundHTTPException
 from src.init import redis_manager
 from src.api.hotels import router as router_hotels
 from src.api.auth import router as router_auth
@@ -35,6 +38,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_exception_handler(HotelNotFoundHTTPException, hotel_not_found_handler)
+app.add_exception_handler(RoomNotFoundHTTPException, room_not_found_handler)
+app.add_exception_handler(AllRoomsAreBookedExcepion, booking_exception_handler)
+
 
 app.include_router(router_auth)
 app.include_router(router_rooms)
