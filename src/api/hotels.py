@@ -4,7 +4,8 @@ from fastapi_cache.decorator import cache
 from sqlalchemy import func, insert, select
 
 
-from exceptions import HotelNotFoundHTTPException, ObjectNotFoundException, ObjectNotFoundException, check_date_to_after_date_from
+from exceptions import HotelNotFoundHTTPException, ObjectNotFoundException, ObjectNotFoundException
+from src.services.hotels import HotelService
 from src.api.dependencies import DBDep, PaginationDep
 from src.schemas.hotels import Hotel, HotelAdd, HotelPATCH
 
@@ -24,31 +25,24 @@ async def get_hotels(
     location: str | None = Query(None, description="Локация"),
     title: str | None = Query(None, description="Название отеля"),
 ):
-    check_date_to_after_date_from(date_from,date_to)
-    per_page = pagination.per_page or 5
-    return await db.hotels.get_filtered_by_time(
+    hotels = await HotelService(db).get_filtered_by_time(
         date_from=date_from,
         date_to=date_to,
         location=location,
         title=title,
-        limit=per_page,
-        offset=per_page * (pagination.page - 1),
+        pagination=pagination,
     )
+    return {"status": "ok", "data": hotels}
 
 
 @router.get("/{hotel_id}")
 async def edit_hotel(hotel_id: int, db: DBDep):
     try:
-        return await db.hotels.get_one(id=hotel_id)
+        return await HotelService(db).get_hotel(hotel_id=hotel_id)
     except ObjectNotFoundException:
         raise HTTPException(status_code=400,detail="Отель не найден")
 
 
-@router.delete("/{hotel_id}")
-async def delete_hotel(hotel_id: int, db: DBDep):
-    await db.hotels.delete(id=hotel_id)
-    # КОММИТ НА УРОВНЕ РУЧКИ ПРОИСХОДИТ!!!!!!!!!!
-    return {"status": "ok"}
 
 @router.get("/{hotel_id}")
 async def get_hotel(hotel_id: int, db: DBDep):
@@ -81,24 +75,24 @@ async def create_hotel(
     # {'name': 'Hilton', 'location': 'Москва', 'rooms_quantity': 100, ...}
 
     # Две звездочки ** "распаковывают" словарь в именованные аргументы
-    hotel = await db.hotels.add(hotel_data)
     # execute в переводе - исполни
     # compile() значит скомпилируй  логирование
     # print(add_hotel_stmt.compile(engine,compile_kwargs={"literal_binds":True}))
-    return {"status": "ok"}
+    hotel = await HotelService(db).add_hotel(hotel_data)
+    return {"status": "ok", "data": hotel}
 
 
 # @app.get("/")
 # def func():
 #     return "Hello WORLD!"
 
-# put отправить все параметры сущности кроме айдшника. меняем только title name если не всё передастаться  то ошибка
+# put отправить все параметры сущности кроме айдшника. меняем только title name если не всё передастся  то ошибка
 # patch там можно передать либо title лбио name (либо и то и то, но это уже put) puch создан чтоб редачиь один пареметр по сути
 
 
 @router.put("/{hotel_id}")
 async def edit_hotel(hotel_id: int, hotel_data: HotelAdd, db: DBDep):
-    await db.hotels.edit(hotel_data, id=hotel_id)
+    await HotelService(db).edit_hotel(hotel_id=hotel_id, hotel_data=hotel_data)
     return {"status": "ok"}
 
 
@@ -108,4 +102,11 @@ async def edit_hotel(hotel_id: int, hotel_data: HotelAdd, db: DBDep):
     description="Тут мы частично обновлением данные об оетле. можно отправить name, а можно title",
 )
 async def partilly_edit_hotel(hotel_id: int, hotel_data: HotelPATCH, db: DBDep):
-    await db.hotels.edit(hotel_data, exclude_unsert=True, id=hotel_id)
+    await HotelService(db).partilly_edit_hotel(hotel_id=hotel_id, hotel_data=hotel_data)
+    return {"status": "ok"}
+
+@router.delete("/{hotel_id}")
+async def delete_hotel(hotel_id: int, db: DBDep):
+    await HotelService(db).delete_hotel(hotel_id=hotel_id)
+    # КОММИТ НА УРОВНЕ РУЧКИ ПРОИСХОДИТ!!!!!!!!!!
+    return {"status": "ok"}

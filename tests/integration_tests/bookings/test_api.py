@@ -6,9 +6,6 @@ from src.schemas.hotels import HotelAdd
 from src.schemas.rooms import RoomAdd
 
 
-# -----------------------------
-# Очистка бронирований перед каждым тестом
-# -----------------------------
 @pytest_asyncio.fixture(autouse=True)
 async def clean_bookings(db):
     await db.bookings.delete()
@@ -16,7 +13,6 @@ async def clean_bookings(db):
     yield
 
 
-# -----------------------------
 # Фикстура: создаем тестовый отель и комнату
 @pytest_asyncio.fixture
 async def test_room(db):
@@ -42,9 +38,6 @@ async def test_room(db):
     return room
 
 
-# -----------------------------
-# Тест добавления бронирования
-# -----------------------------
 @pytest.mark.parametrize(
     "date_from, date_to, expected_status",
     [
@@ -79,10 +72,6 @@ async def test_add_booking(
         res = response.json()
         assert res["status"] == "ok"
 
-
-# -----------------------------
-# Тест получения своих бронирований
-# -----------------------------
 @pytest.mark.parametrize(
     "dates, expected_count",
     [
@@ -115,7 +104,6 @@ async def test_add_and_get_my_bookings(
     authenticated_ac,
     test_room,
 ):
-    # добавляем бронирования
     for date_from, date_to in dates:
         response = await authenticated_ac.post(
             "/bookings/",
@@ -140,3 +128,4 @@ async def test_add_and_get_my_bookings(
         bookings = data
 
     assert len(bookings) == expected_count
+    

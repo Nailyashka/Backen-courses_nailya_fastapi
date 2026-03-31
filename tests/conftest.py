@@ -1,8 +1,11 @@
 # ruff: noqa: E402
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
 import json
 from unittest import mock
 import pytest
 import pytest_asyncio
+import asyncpg
 from httpx import ASGITransport, AsyncClient
 
 # --- mock кэш ---
@@ -17,6 +20,10 @@ def patch_cache():
     with mock.patch("fastapi_cache.decorator.cache", lambda *args, **kwargs: lambda f: f):
         yield
 
+@pytest.fixture(scope="session", autouse=True)
+def init_test_cache():
+    FastAPICache.init(InMemoryBackend(), prefix="test-cache")
+
 # --- импорт проекта ---
 from src.schemas.rooms import RoomAdd
 from src.schemas.hotels import HotelAdd
@@ -26,7 +33,40 @@ from src.main import app
 from src.models import *  # noqa: F403
 from src.utils.db_manager import DBManager
 
-# --- проверка режима ---
+
+async def ensure_test_database_exists():
+    """Create test database if it does not exist yet."""
+    try:
+        conn = await asyncpg.connect(
+            user=settings.DB_USER,
+            password=settings.DB_PASS,
+            host=settings.DB_HOST,
+            port=settings.DB_PORT,
+            database=settings.DB_NAME,
+        )
+        await conn.close()
+        return
+    except asyncpg.InvalidCatalogNameError:
+        pass
+
+    admin_db = "postgres" if settings.DB_NAME != "postgres" else "template1"
+    admin_conn = await asyncpg.connect(
+        user=settings.DB_USER,
+        password=settings.DB_PASS,
+        host=settings.DB_HOST,
+        port=settings.DB_PORT,
+        database=admin_db,
+    )
+    try:
+        exists = await admin_conn.fetchval(
+            "SELECT 1 FROM pg_database WHERE datname = $1",
+            settings.DB_NAME,
+        )
+        if not exists:
+            await admin_conn.execute(f'CREATE DATABASE "{settings.DB_NAME}"')
+    finally:
+        await admin_conn.close()
+        # --- проверка режима ---
 @pytest.fixture(scope="session", autouse=True)
 def check_test_mode():
     assert settings.MODE == "TEST"
@@ -43,9 +83,11 @@ async def db():
             await db.session.close()
 
 # --- одноразовая настройка БД для всей сессии ---
-@pytest_asyncio.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(scope="session", loop_scope="session", autouse=True)
 async def setup_database():
     """Создание структуры и загрузка тестовых данных"""
+    await ensure_test_database_exists()
+
     async with engine_null_pool.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
@@ -69,22 +111,20 @@ async def setup_database():
         await conn.run_sync(Base.metadata.drop_all)
 
 # --- фикстуры для HTTP клиента ---
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def ac():
     """Асинхронный клиент для всех тестов"""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def authenticated_ac(ac, setup_database):
     """Фикстура для зарегистрированного пользователя"""
-    # Регистрируем пользователя
     await ac.post(
         "/auth/register", json={"email": "hot@lala.com", "password": "1234"}
     )
 
-    # Логинимся
     response = await ac.post(
         "/auth/login",
         json={"email": "hot@lala.com", "password": "1234"},

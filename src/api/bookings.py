@@ -41,7 +41,10 @@ async def add_booking(user_id: UserIdDepends, db: DBDep, booking_data: BookingAd
     )
 
     try:
-        booking = await db.bookings.add_booking(_booking_data)
+        booking = await db.bookings.add_booking(
+            _booking_data,
+            hotel_id=booking_data.hotel_id,
+        )
     except AllRoomsAreBookedExcepion:
         raise HTTPException(status_code=409, detail="Не осталось свободных номеров")
     except Exception as e:
